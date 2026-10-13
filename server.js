@@ -3,11 +3,14 @@
  * [남양주시 화물팀 인허가 안내 초고속 AI 챗봇 백엔드 서버]
  * ==============================================================================
  * 
- * 💡 핵심 아키텍처 및 보안 설계:
- * 1. [보안 최우선]: 브라우저(클라이언트)에 Groq API Key가 절대 노출되지 않도록 서버 사이드 프록시 처리.
- * 2. [스마트 인덱싱 RAG]: 46개 세부 섹션으로 자동 분할된 화물 매뉴얼에서 질문과 가장 관련 있는
+ * 💡 핵심 아키텍처 및 Vercel 서버리스 호환 설계:
+ * 1. [Vercel 완전 호환]: module.exports = app을 제공하여 로컬(node server.js)과
+ *    Vercel 클라우드 서버리스 배포 환경 모두에서 100% 정상 작동.
+ * 2. [안전한 에러 핸들링]: Vercel에 환경변수가 누락되어도 함수가 크래시(500 Invocation Failed)되지 않고
+ *    친절한 안내 메시지를 반환하도록 방어 코드 적용.
+ * 3. [스마트 인덱싱 RAG]: 46개 세부 섹션으로 자동 분할된 화물 매뉴얼에서 질문과 가장 관련 있는
  *    핵심 섹션을 0.001초 만에 발췌하여 주입 (API 한도 초과 413 방지 + 정확도 극대화).
- * 3. [초고속 스트리밍]: Groq LPU 엔진(openai/gpt-oss-120b)과 SSE(Server-Sent Events)를 결합하여
+ * 4. [초고속 스트리밍]: Groq LPU 엔진(openai/gpt-oss-120b)과 SSE(Server-Sent Events)를 결합하여
  *    0.3초 내 첫 글자가 화면에 즉시 타이핑되는 초고속 응답 속도 제공.
  */
 
@@ -19,65 +22,86 @@ const fs = require('fs');
 const path = require('path');
 const { Groq } = require('groq-sdk');
 
-// 2. 환경설정(.env) 로드
+// 2. 환경설정(.env) 로드 (로컬 개발용)
 dotenv.config();
-
-const apiKey = process.env.GROQ_API_KEY;
-if (!apiKey) {
-    console.error('❌ [오류] GROQ_API_KEY가 설정되지 않았습니다. .env 파일을 확인해주세요.');
-    process.exit(1);
-}
-
-// 3. Groq SDK 클라이언트 초기화
-const groq = new Groq({ apiKey });
 
 // 포트 및 모델명 설정
 const PORT = process.env.PORT || 3080;
 const MODEL_NAME = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 
+// 3. Groq SDK 클라이언트 초기화 함수 (지연 초기화 및 Vercel 환경변수 누락 방어)
+function getGroqClient() {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+        return null;
+    }
+    return new Groq({ apiKey });
+}
+
 // ==============================================================================
 // 4. 매뉴얼 로딩 및 스마트 섹션 분할(Chunking) 인메모리 인덱스 구축
 // ==============================================================================
-const manualPath = path.join(__dirname, 'manual_data', '화물운송사업_매뉴얼.md');
 let manualSections = [];
 
-try {
-    if (fs.existsSync(manualPath)) {
-        const rawContent = fs.readFileSync(manualPath, 'utf8');
-        
-        // 마크다운 헤더(#, ##, ###, ####) 기준으로 세부 섹션 분할
-        const lines = rawContent.split('\n');
-        let currentTitle = '남양주시 화물차 인허가 매뉴얼 개요';
-        let currentContent = [];
+function loadManualData() {
+    try {
+        // Vercel 서버리스 환경과 로컬 환경 모두 고려한 경로 탐색
+        const possiblePaths = [
+            path.join(__dirname, 'manual_data', '화물운송사업_매뉴얼.md'),
+            path.join(process.cwd(), 'manual_data', '화물운송사업_매뉴얼.md')
+        ];
 
-        for (const line of lines) {
-            if (line.startsWith('# ') || line.startsWith('## ') || line.startsWith('### ') || line.startsWith('#### ')) {
-                if (currentContent.length > 0) {
-                    manualSections.push({
-                        title: currentTitle,
-                        content: currentContent.join('\n').trim()
-                    });
-                    currentContent = [];
-                }
-                currentTitle = line.replace(/^#+\s*/, '').trim();
+        let rawContent = '';
+        let targetPath = '';
+
+        for (const p of possiblePaths) {
+            if (fs.existsSync(p)) {
+                rawContent = fs.readFileSync(p, 'utf8');
+                targetPath = p;
+                break;
             }
-            currentContent.push(line);
         }
 
-        if (currentContent.length > 0) {
-            manualSections.push({
-                title: currentTitle,
-                content: currentContent.join('\n').trim()
-            });
-        }
+        if (rawContent) {
+            // 마크다운 헤더(#, ##, ###, ####) 기준으로 세부 섹션 분할
+            const lines = rawContent.split('\n');
+            let currentTitle = '남양주시 화물차 인허가 매뉴얼 개요';
+            let currentContent = [];
+            const parsedSections = [];
 
-        console.log(`✅ [매뉴얼 로드 완료] 총 ${manualSections.length}개 세부 섹션 인덱싱 완료!`);
-    } else {
-        console.warn(`⚠️ [경고] 매뉴얼 파일을 찾을 수 없습니다: ${manualPath}`);
+            for (const line of lines) {
+                if (line.startsWith('# ') || line.startsWith('## ') || line.startsWith('### ') || line.startsWith('#### ')) {
+                    if (currentContent.length > 0) {
+                        parsedSections.push({
+                            title: currentTitle,
+                            content: currentContent.join('\n').trim()
+                        });
+                        currentContent = [];
+                    }
+                    currentTitle = line.replace(/^#+\s*/, '').trim();
+                }
+                currentContent.push(line);
+            }
+
+            if (currentContent.length > 0) {
+                parsedSections.push({
+                    title: currentTitle,
+                    content: currentContent.join('\n').trim()
+                });
+            }
+
+            manualSections = parsedSections;
+            console.log(`✅ [매뉴얼 로드 완료] 총 ${manualSections.length}개 세부 섹션 인덱싱 완료! (경로: ${targetPath})`);
+        } else {
+            console.warn(`⚠️ [경고] 매뉴얼 파일을 찾을 수 없습니다. (탐색 경로: ${possiblePaths.join(', ')})`);
+        }
+    } catch (err) {
+        console.error('❌ [오류] 매뉴얼 로드 실패:', err);
     }
-} catch (err) {
-    console.error('❌ [오류] 매뉴얼 로드 실패:', err);
 }
+
+// 서버 시작 시 매뉴얼 1회 로드
+loadManualData();
 
 /**
  * 사용자 질문에서 핵심 키워드를 추출하여 가장 관련성 높은 상위 매뉴얼 섹션을 발췌하는 함수
@@ -86,6 +110,9 @@ try {
  * @returns {Array} 관련 섹션 배열
  */
 function findRelevantSections(userQuery, maxSections = 3) {
+    if (!manualSections.length) {
+        loadManualData(); // 혹시 비어있으면 재로드 시도
+    }
     if (!manualSections.length) return [];
 
     // 한글, 영문, 숫자 단어 추출 (2글자 이상)
@@ -135,13 +162,23 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public'))); // public 폴더 서빙
+
+// 정적 파일 서빙 (public 폴더)
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(process.cwd(), 'public')));
 
 /**
  * [POST /api/chat] 초고속 실시간 스트리밍 대화 엔드포인트
  */
 app.post('/api/chat', async (req, res) => {
     try {
+        const groq = getGroqClient();
+        if (!groq) {
+            return res.status(500).json({
+                error: 'GROQ_API_KEY 환경변수가 설정되지 않았습니다. Vercel 대시보드의 Settings > Environment Variables에서 GROQ_API_KEY를 등록해주세요.'
+            });
+        }
+
         const { message, history } = req.body;
 
         if (!message || typeof message !== 'string') {
@@ -200,9 +237,9 @@ ${contextText}
         const completionStream = await groq.chat.completions.create({
             model: MODEL_NAME,
             messages: messages,
-            temperature: 0.2, // 사실 기반의 일관된 응답 유지
+            temperature: 0.2,
             max_tokens: 1500,
-            stream: true // ⚡ 스트리밍 모드
+            stream: true
         });
 
         // 6) 생성되는 토큰을 실시간으로 브라우저에 전송
@@ -237,16 +274,36 @@ app.get('/api/health', (req, res) => {
         status: 'ok',
         service: '남양주시 화물팀 인허가 안내 챗봇',
         model: MODEL_NAME,
+        hasGroqKey: Boolean(process.env.GROQ_API_KEY),
         sectionCount: manualSections.length
     });
 });
 
-// 서버 가동
-app.listen(PORT, () => {
-    console.log('========================================================');
-    console.log(`🚀 남양주시 화물팀 인허가 안내 AI 챗봇이 시작되었습니다!`);
-    console.log(`🌐 서비스 접속 주소: http://localhost:${PORT}`);
-    console.log(`⚡ AI 추론 가속 엔진: Groq (${MODEL_NAME})`);
-    console.log(`🔒 보안: API Key 서버 완벽 은닉`);
-    console.log('========================================================');
+// 루트 요청 시 index.html 서빙 (서버리스 환경 대비)
+app.get('/', (req, res) => {
+    const indexPath = path.join(__dirname, 'public', 'index.html');
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
+    }
 });
+
+// ==============================================================================
+// 6. 로컬 환경 및 Vercel 서버리스 배포 환경 양방향 지원
+// ==============================================================================
+
+// 로컬 환경에서 단독 실행될 때만 포트를 열고 수신
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log('========================================================');
+        console.log(`🚀 남양주시 화물팀 인허가 안내 AI 챗봇이 시작되었습니다!`);
+        console.log(`🌐 서비스 접속 주소: http://localhost:${PORT}`);
+        console.log(`⚡ AI 추론 가속 엔진: Groq (${MODEL_NAME})`);
+        console.log(`🔒 보안: API Key 서버 완벽 은닉`);
+        console.log('========================================================');
+    });
+}
+
+// 🌟 Vercel 서버리스 함수 및 모듈 내보내기 (필수)
+module.exports = app;
