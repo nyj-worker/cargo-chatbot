@@ -52,13 +52,23 @@ function loadManualData() {
         ];
 
         let rawContent = '';
-        let targetPath = '';
+        let targetPath = 'manualData.js';
 
-        for (const p of possiblePaths) {
-            if (fs.existsSync(p)) {
-                rawContent = fs.readFileSync(p, 'utf8');
-                targetPath = p;
-                break;
+        // 1) 번들 모듈(manualData.js)이 있으면 파일시스템 경로 상관없이 즉시 로드
+        try {
+            rawContent = require('./manual_data/manualData.js');
+        } catch (e) {
+            rawContent = '';
+        }
+
+        // 2) 모듈이 없으면 파일 직접 읽기
+        if (!rawContent) {
+            for (const p of possiblePaths) {
+                if (fs.existsSync(p)) {
+                    rawContent = fs.readFileSync(p, 'utf8');
+                    targetPath = p;
+                    break;
+                }
             }
         }
 

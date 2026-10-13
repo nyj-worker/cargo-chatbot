@@ -1,21 +1,12 @@
 {
-  "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "server.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": [
-          "manual_data/**",
-          "public/**"
-        ]
-      }
-    }
-  ],
-  "routes": [
+      "source": "/api/chat",
+      "destination": "/api/chat.js"
+    },
     {
-      "src": "/(.*)",
-      "dest": "server.js"
+      "source": "/api/health",
+      "destination": "/api/health.js"
     }
   ]
 }
