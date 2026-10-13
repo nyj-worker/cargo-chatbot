@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>남양주시 화물팀 인허가 안내 스마트 AI 상담관</title>
+    <!-- 구글 웹폰트 (Pretendard 스타일 및 Plus Jakarta Sans) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome 아이콘 CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- 마크다운 렌더러 Marked.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-light">
+    <!-- 배경 은은한 오로라 글로우 효과 -->
+    <div class="background-glow glow-1"></div>
+    <div class="background-glow glow-2"></div>
+    <div class="background-glow glow-3"></div>
+
+    <div class="app-layout">
+        <!-- 메인 2열 분할 작업 영역 (오른쪽 답변 영역이 화면 상단 끝까지 확장됨) -->
+        <main class="app-body">
+            
+            <!-- ◀ [왼쪽 사이드바]: 브랜딩 헤더 + 퀵 질문 컨트롤 + 질문 입력창 -->
+            <aside class="sidebar-panel">
+                
+                <!-- 1. 사이드바 최상단 브랜딩 헤더 (로고 및 노란색 박스 위치의 컨트롤 버튼들) -->
+                <div class="sidebar-brand-header">
+                    <div class="logo-box">
+                        <div class="logo-icon-pulse">
+                            <i class="fa-solid fa-truck-moving"></i>
+                        </div>
+                        <div class="logo-text-group">
+                            <div class="sub-badge">남양주시 자동차관리과 화물팀</div>
+                            <h1 class="logo-title">화물 인허가 스마트 AI 상담관</h1>
+                        </div>
+                    </div>
+                    
+                    <!-- 🟨 [노란색 박스 위치]: 테마 변경 버튼과 대화 초기화 버튼을 타이틀 옆에 나란히 배치 -->
+                    <div class="brand-action-buttons">
+                        <button class="header-btn" id="themeToggleBtn" title="화면 테마 변경 (다크/라이트)" aria-label="테마 변경">
+                            <i class="fa-solid fa-moon"></i>
+                        </button>
+                        <button class="header-btn" id="clearChatBtn" title="대화 내용 새로고침" aria-label="대화 초기화">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. 사이드바 본문: 상태 배지 + 환영 문구 + 6대 추천 질문 -->
+                <div class="sidebar-top-section">
+                    <!-- 시스템 가동 상태 배지 -->
+                    <div class="sidebar-status-bar">
+                        <div class="system-badge" id="systemStatus">
+                            <span class="status-dot"></span>
+                            <span class="status-text">Groq LPU 초고속 가동 중</span>
+                        </div>
+                    </div>
+
+                    <!-- 환영 문구 배너 -->
+                    <div class="welcome-banner">
+                        <div class="welcome-avatar">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div class="welcome-text">
+                            <h2>환영합니다! 화물 인허가 안내입니다.</h2>
+                            <p>남양주시 화물자동차 운송사업 실무 매뉴얼을 기반으로 양도양수, 차고지, 유가보조금, 휴·폐업 등 행정 절차를 즉시 안내해 드립니다.</p>
+                        </div>
+                    </div>
+
+                    <!-- 자주 묻는 민원 6대 퀵 질문 목록 (언제든 다시 클릭 가능) -->
+                    <div class="quick-questions-container">
+                        <div class="section-label">
+                            <i class="fa-regular fa-lightbulb"></i> 자주 묻는 민원 질문 (클릭 시 자동 질의)
+                        </div>
+                        <div class="quick-list">
+                            <button class="quick-btn" data-query="개인화물 간 양도양수(1-1) 신청 시 필요한 구비서류와 수수료, 진행 절차를 상세히 알려줘.">
+                                <span class="q-icon"><i class="fa-solid fa-file-invoice"></i></span>
+                                <div class="q-text-box">
+                                    <span class="q-title">개인화물 양도양수 구비서류</span>
+                                    <span class="q-desc">서류 13종 및 수수료 3,000원 안내</span>
+                                </div>
+                            </button>
+
+                            <button class="quick-btn" data-query="차고지 설치 확인 업무(제6장)에서 차고지 설치 의무 면제 대상 차량과 장소 유형별 구비서류를 비교해줘.">
+                                <span class="q-icon"><i class="fa-solid fa-square-parking"></i></span>
+                                <div class="q-text-box">
+                                    <span class="q-title">차고지 설치 기준 & 면제 대상</span>
+                                    <span class="q-desc">1.5톤 이하 면제 여부 및 장소별 서류 비교</span>
+                                </div>
+                            </button>
+
+                            <button class="quick-btn" data-query="위수탁차주가 일반화물에서 개인화물로 독립하는 '일부 양도양수(1-2)'의 자격 요건과 절차를 알려줘.">
+                                <span class="q-icon"><i class="fa-solid fa-arrows-split-up-and-left"></i></span>
+                                <div class="q-text-box">
+                                    <span class="q-title">지입차주 독립 (일부 양도양수)</span>
+                                    <span class="q-desc">일반화물 법인 → 개인화물 전환 절차</span>
+                                </div>
+                            </button>
+
+                            <button class="quick-btn" data-query="유가보조금 화물복지카드 발급 심사(루틴 1) 대상 톤급 기준과 심사 절차를 알려줘.">
+                                <span class="q-icon"><i class="fa-solid fa-gas-pump"></i></span>
+                                <div class="q-text-box">
+                                    <span class="q-title">유가보조금 카드 심사 기준</span>
+                                    <span class="q-desc">최대적재량 심사 및 시스템 대조 절차</span>
+                                </div>
+                            </button>
+
+                            <button class="quick-btn" data-query="화물자동차 주소변경(제3장) 시 관내 변경과 관외 전입·전출의 처리 절차 차이점을 알려줘.">
+                                <span class="q-icon"><i class="fa-solid fa-map-location-dot"></i></span>
+                                <div class="q-text-box">
+                                    <span class="q-title">화물차 주소변경 (관내/관외)</span>
+                                    <span class="q-desc">전입, 전출 시 필요서류 및 새올 처리</span>
+                                </div>
+                            </button>
+
+                            <button class="quick-btn" data-query="화물운송사업 휴업 및 폐업(제4장) 신청 시 구비서류와 번호판 반납 절차는 어떻게 되나요?">
+                                <span class="q-icon"><i class="fa-solid fa-ban"></i></span>
+                                <div class="q-text-box">
+                                    <span class="q-title">화물사업 휴업 · 폐업 절차</span>
+                                    <span class="q-desc">수수료 1,000원 및 번호판 영치 절차</span>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. 사이드바 하단: 질문 입력창 -->
+                <div class="sidebar-input-section">
+                    <div class="input-card">
+                        <div class="input-field-wrapper">
+                            <textarea 
+                                id="chatInput" 
+                                class="chat-textarea" 
+                                placeholder="화물 인허가, 차고지, 수수료 등에 대해 직접 물어보세요... (Shift + Enter 줄바꿈)" 
+                                rows="2"
+                                maxlength="1500"
+                            ></textarea>
+                            
+                            <button id="sendBtn" class="send-btn" title="질문 전송" aria-label="메시지 전송">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </aside>
+
+            <!-- ▶ [오른쪽 메인 답변 영역]: 상단 헤더가 제거되어 화면 맨 위부터 꽉 차게 넓어진 와이드 뷰 -->
+            <section class="chat-panel">
+                <div class="chat-container" id="chatContainer">
+                    
+                    <!-- 초기 안내 메시지 (첫 질문 전 표시) -->
+                    <div class="empty-chat-placeholder" id="emptyStatePlaceholder">
+                        <div class="placeholder-icon">
+                            <i class="fa-solid fa-comments"></i>
+                        </div>
+                        <h3>상세 행정 안내가 이곳에 표시됩니다</h3>
+                        <p>왼쪽 사이드바에서 <strong>자주 묻는 질문 카드</strong>를 클릭하시거나,<br>직접 궁금한 내용을 입력하시면 표와 단계별 절차로 상세히 안내해 드립니다.</p>
+                    </div>
+
+                    <!-- 실시간 대화 메시지 목록 -->
+                    <div class="chat-messages" id="chatMessages"></div>
+                    
+                </div>
+
+                <!-- 🔝 플로팅 탑(Top) 버튼 (원형 스크롤 프로그레스 링 포함) -->
+                <button id="scrollToTopBtn" class="scroll-top-btn" title="최상단으로 이동" aria-label="맨 위로 스크롤">
+                    <svg class="progress-ring-svg" width="46" height="46" viewBox="0 0 46 46">
+                        <circle class="progress-ring-track" cx="23" cy="23" r="20"></circle>
+                        <circle class="progress-ring-indicator" id="scrollProgressCircle" cx="23" cy="23" r="20"></circle>
+                    </svg>
+                    <i class="fa-solid fa-arrow-up top-arrow-icon"></i>
+                </button>
+
+                <!-- 맨 아래로 부드럽게 스크롤 버튼 (사용자가 위로 올렸을 때 등장) -->
+                <button id="scrollToBottomBtn" class="scroll-bottom-btn" title="맨 아래로 이동" aria-label="맨 아래로 스크롤">
+                    <i class="fa-solid fa-arrow-down"></i>
+                </button>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- 복사 알림 토스트 메시지 -->
+    <div id="toastNotification" class="toast">
+        <i class="fa-solid fa-check"></i>
+        <span id="toastMessage">내용이 클립보드에 복사되었습니다.</span>
+    </div>
+
+    <!-- 자바스크립트 로드 -->
+    <script src="app.js"></script>
+</body>
+</html>

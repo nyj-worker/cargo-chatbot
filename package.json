@@ -1,0 +1,25 @@
+{
+  "name": "cargo-permit-bot",
+  "version": "1.0.0",
+  "description": "남양주시 화물팀 인허가 안내 초고속 AI 챗봇",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "cargo",
+    "permit",
+    "chatbot",
+    "groq",
+    "llama3"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "groq-sdk": "^0.15.0"
+  }
+}
